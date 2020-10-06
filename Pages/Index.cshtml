@@ -1,0 +1,169 @@
+﻿@page
+    <canvas hidden id="myChart"></canvas>
+    <div>
+        <div class="gridcontainer clearfix">
+	<div class="grid_3">
+		<div class="fmcircle_out">
+			<a href="#web">
+				<div class="fmcircle_border">
+					<div id="red" type="button" class="fmcircle_in fmcircle_blue">
+						<span>Web-Design</span><img src="https://dl.dropbox.com/u/65958930/uploads/cssdeck/design.png" alt="" />
+					</div>
+				</div>
+			</a>
+		</div>
+	</div>
+    <div class="grid_3">
+		<div class="fmcircle_out">
+			<a href="#branding">
+				<div class="fmcircle_border">
+					<div id="blue" type="button" class="fmcircle_in fmcircle_green">
+						<span>Branding</span><img src="https://dl.dropbox.com/u/65958930/uploads/cssdeck/logo.png" alt="" />
+					</div>
+				</div>
+			</a>
+		</div>
+	</div>
+
+	<div  class="grid_3">
+		<div class="fmcircle_out">
+			<a href="#software">
+				<div class="fmcircle_border">
+					<div id="yellow" type="button" class="fmcircle_in fmcircle_red">
+						<span>Integration</span><img src="https://dl.dropbox.com/u/65958930/uploads/cssdeck/develop.png" alt="" />
+					</div>
+				</div>
+			</a>
+		</div>
+	</div>
+</div>
+  <!--  <button class="btn btn-red" id="red" type="button">肯德基爺爺</button>
+    <button class="btn btn-blue" id="blue" type="button">漢堡王特價</button>
+    <button class="btn btn-yellow" id="yellow" type="button">麥當勞好吃</button>-->
+
+    <!--<button class="a.btn" id="finish" type="button">查看結果</button>-->
+</div>
+
+    
+<script src="~/js/signalr/dist/browser/signalr.js"></script>
+<script src="~/js/chat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
+<script>
+    var data = [];
+    var chartData =
+    {
+        type: 'bar',
+        data: {
+            labels: ["Red", "Blue", "Yellow"],
+            datasets: [{
+                label: '# of Votes',
+                data: data,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 206, 86, 0.2)',
+                ],
+                borderColor: [
+                    'rgba(255,99,132,1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero:true
+                    }
+                }]
+            }
+        }
+    }
+
+    var ctx = document.getElementById("myChart").getContext('2d');
+
+    var connection = new signalR.HubConnectionBuilder().withUrl("/voteHub").build();
+    var myChart = new Chart(ctx, chartData);
+
+
+    // 連接事件
+    connection.start()
+    .then(function () {
+        connection.invoke("GetVote", 'Test Vote').catch(function (err) {
+            return console.error(err.toString());
+        });
+    })
+    .catch(function (err) {
+        return console.error(err.toString());
+    });
+
+    connection.on("ReceiveVote", function (json) {
+
+        data.push(json.voteSelect.red);
+        data.push(json.voteSelect.blue);
+        data.push(json.voteSelect.yellow);
+
+
+        myChart = new Chart(ctx, chartData);
+
+    });
+
+    // 投票按鈕
+    var red = document.getElementById('red');
+    var blue = document.getElementById('blue');
+    var yellow = document.getElementById('yellow');
+    var total = 0;
+    alert(total);
+
+    function AddVoteSelect(voteSelect) {
+        connection.invoke("AddVoteSelectCount", 'Test Vote', voteSelect).catch(function (err) {
+            return console.error(err.toString());
+        });
+    }
+
+    function SubVoteSelect(voteSelect) {
+        connection.invoke("SubVoteSelectCount", 'Test Vote', voteSelect).catch(function (err) {
+            return console.error(err.toString());
+        });
+    }
+    connection.on("ReceiveVoteSelectCount", function (json, voteSelect) {
+        total+=json;
+        var index = chartData.data.labels.indexOf(voteSelect);
+        chartData.data.datasets[0].data[index] = json;
+        myChart.update();
+        if(total>=3){
+            if(chartData.data.datasets[0].data[0]>=2){
+                window.localStorage.setItem("data","麥當勞");
+            }
+            else if(chartData.data.datasets[0].data[1]>=2){
+                window.localStorage.setItem("data","肯德基");
+            }
+            else if(chartData.data.datasets[0].data[2]>=2){
+                window.localStorage.setItem("data","漢堡王");
+            }
+            else{
+                window.localStorage.setItem("data","吃大便");
+            }
+            document.location.href="/Result";
+            total = 0;
+        }
+    });
+
+    // 投票事件
+    red.onclick = function () {
+        AddVoteSelect('Red');
+    }
+    blue.onclick = function () {
+        AddVoteSelect('Blue');
+    }
+    yellow.onclick = function () {
+        AddVoteSelect('Yellow');
+    }
+
+    finish.onclick = function () {
+        document.location.href="/Result";
+    }
+
+</script>
